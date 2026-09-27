@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive LMS Content Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#faf7f1; --bg-alt:#f1ece1; --surface:#ffffff; --border:#e0d8c6;
+    --text:#1c2321; --text-dim:#4a4438; --label:#8a8270;
+    --teal:#0f5257; --coral:#e2622b; --coral-light:#f0955f;
+    --dark:#1c2321; --dark2:#242a25; --dark-text:#cfe0de;
+    --radius:18px; --maxw:1180px; --nav-h:64px; --ctrl-h:76px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans', Arial, sans-serif; line-height:1.5;
+    overflow:hidden;
+  }
+  h1,h2,h3{font-family:'Newsreader', Georgia, serif; margin:0; color:var(--text)}
+  p{margin:0}
+  a{color:var(--teal)}
+  svg{display:block}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px; width:100%}
+  .eyebrow{font-size:13px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--coral); margin-bottom:8px}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px}
+  .grid{display:grid; gap:14px}
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer; border:none;
+    font-family:inherit; font-weight:600; font-size:14px; border-radius:999px;
+    padding:9px 18px; transition:transform .15s ease, opacity .15s ease;
+  }
+  .btn:active{transform:scale(0.97)}
+  .btn-teal{background:var(--teal); color:#fff}
+  .btn:hover{opacity:0.88}
+  .pill{display:inline-block; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:600}
+  .icon{flex-shrink:0}
+
+  /* ===== TOP NAV (segment tabs) ===== */
+  #topnav{
+    position:fixed; top:0; left:0; right:0; height:var(--nav-h); z-index:50;
+    background:rgba(250,247,241,0.95); backdrop-filter:blur(8px); border-bottom:1px solid var(--border);
+    display:flex; align-items:center;
+  }
+  #topnav .inner{max-width:var(--maxw); margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:18px; width:100%}
+  #topnav .brand{font-family:'Newsreader',serif; font-weight:600; font-size:16px; white-space:nowrap}
+  #navlinks{display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; flex:1}
+  #navlinks::-webkit-scrollbar{display:none}
+  #navlinks a{
+    white-space:nowrap; font-size:12.5px; font-weight:600; color:var(--text-dim);
+    text-decoration:none; padding:7px 12px; border-radius:999px; cursor:pointer;
+  }
+  #navlinks a.active{background:var(--teal); color:#fff}
+  #navlinks a:hover:not(.active){background:var(--bg-alt)}
+  #progressbar{position:fixed; top:var(--nav-h); left:0; height:2px; background:var(--coral); z-index:51; width:0%; transition:width .25s ease}
+
+  /* ===== SLIDES ===== */
+  #deck{position:absolute; top:0; left:0; right:0; bottom:0}
+  .slide{
+    position:absolute; inset:0; display:none; flex-direction:column; justify-content:center;
+    padding:calc(var(--nav-h) + 36px) 5vw 56px; overflow-y:auto;
+  }
+  .slide.active{display:flex}
+
+  /* ===== BOTTOM CONTROLS (minimal edge arrows) ===== */
+  #controls{position:fixed; inset:0; z-index:40; pointer-events:none}
+  .navbtn{
+    position:fixed; top:50%; transform:translateY(-50%);
+    width:36px; height:36px; border-radius:50%; border:none; background:transparent;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--label);
+    opacity:0.45; transition:opacity .15s ease, color .15s ease; pointer-events:auto;
+  }
+  .navbtn:hover{opacity:1; color:var(--teal)}
+  .navbtn:disabled{opacity:0.12; cursor:default; color:var(--label)}
+  #prevBtn{left:14px}
+  #nextBtn{right:14px}
+  #slidecount{
+    position:fixed; right:16px; bottom:12px; font-size:11px; color:var(--label);
+    opacity:0.6; z-index:40; pointer-events:none;
+  }
+
+  /* ===== TYPOGRAPHY HELPERS ===== */
+  .big-title{font-size:clamp(34px,5.2vw,64px); font-weight:600; line-height:1.08}
+  .mid-title{font-size:clamp(24px,3.2vw,38px); font-weight:600; margin-bottom:20px}
+  .lead{font-size:18px; color:var(--text-dim); max-width:760px; margin-top:16px}
+
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+  .grid-5{grid-template-columns:repeat(5,1fr)}
+  @media(max-width:900px){.grid-2,.grid-3,.grid-4,.grid-5{grid-template-columns:1fr}}
+
+  table.agenda{width:100%; border-collapse:collapse; font-size:15px}
+  table.agenda th{background:var(--teal); color:var(--bg); text-align:left; padding:12px 14px; font-size:13px; text-transform:uppercase; letter-spacing:0.5px}
+  table.agenda td{padding:10px 14px; border-bottom:1px solid var(--border)}
+  table.agenda tr:nth-child(even) td{background:var(--bg-alt)}
+
+  .icon-badge{width:38px; height:38px; border-radius:10px; background:var(--teal); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-family:'IBM Plex Mono',monospace; font-size:16px; flex-shrink:0}
+  .icon-circle{width:44px; height:44px; border-radius:50%; background:var(--bg-alt); color:var(--teal); display:flex; align-items:center; justify-content:center; flex-shrink:0}
+
+  /* diagram flow */
+  .flow{display:flex; align-items:stretch; gap:10px; flex-wrap:wrap}
+  .flow .node{flex:1; min-width:130px; background:var(--dark); border-radius:14px; padding:16px; color:var(--dark-text)}
+  .flow .node .num{color:var(--coral-light); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:1px}
+  .flow .node h4{color:#fff; font-size:17px; margin:4px 0 2px; font-family:'IBM Plex Sans',sans-serif; font-weight:600}
+  .flow .arrow{display:flex; align-items:center; color:var(--label)}
+  @media(max-width:760px){.flow{flex-direction:column}.flow .arrow{transform:rotate(90deg); align-self:center}}
+  .ob-node{cursor:pointer; transition:background .15s ease, opacity .15s ease}
+  .ob-node.locked{opacity:0.55; border:1.5px dashed rgba(255,255,255,0.35)}
+  .ob-node.locked:hover{opacity:0.8}
+  .ob-node.locked .ob-placeholder{font-style:italic; color:var(--label)}
+
+  /* prompt builder */
+  .builder{background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:24px; display:grid; gap:18px; grid-template-columns:1fr 1fr}
+  @media(max-width:860px){.builder{grid-template-columns:1fr}}
+  .builder h4{font-size:18px; font-weight:600; margin-bottom:12px}
+  .field{margin-bottom:12px}
+  .field label{display:block; font-size:12px; font-weight:600; color:var(--label); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px}
+  .field input, .field textarea{
+    width:100%; font-family:inherit; font-size:14px; padding:9px 11px;
+    border:1px solid var(--border); border-radius:10px; background:var(--bg);
+    color:var(--text); resize:vertical;
+  }
+  .field input:focus, .field textarea:focus{outline:2px solid var(--teal); outline-offset:1px}
+  .output-box{
+    background:var(--dark); border-radius:16px; padding:18px; color:var(--dark-text);
+    font-family:'IBM Plex Mono', monospace; font-size:13.5px; line-height:1.65;
+    white-space:pre-wrap; min-height:140px;
+  }
+  .copy-row{display:flex; justify-content:flex-end; margin-top:10px}
+  .copy-btn{background:var(--coral); color:#fff}
+  .copy-btn.copied{background:#2f7a52}
+
+  /* choice pills (worksheet) */
+  .choice-wrap{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px}
+  .choice-pill{
+    background:var(--bg-alt); border:1px solid var(--border); color:var(--text-dim);
+    font-family:inherit; font-size:12.5px; font-weight:600; padding:6px 12px;
+    border-radius:999px; cursor:pointer; transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .choice-pill:hover:not(.active){background:var(--border)}
+  .choice-pill.active{background:var(--teal); color:#fff; border-color:var(--teal)}
+  .choice-pill.auto.active{background:var(--coral); border-color:var(--coral)}
+  .choice-hint{font-size:11.5px; color:var(--label); margin-top:4px; font-weight:400; text-transform:none; letter-spacing:0}
+  .choice-pill.multi.active{background:var(--coral); border-color:var(--coral)}
+
+  /* compact builder variant (fits without vertical scroll) */
+  .builder.compact{padding:16px 20px; gap:12px 24px}
+  .builder.compact h4{font-size:14px; margin-bottom:8px}
+  .builder.compact .field{margin-bottom:9px}
+  .builder.compact .field label{font-size:10.5px; margin-bottom:3px}
+  .builder.compact .field input, .builder.compact .field textarea{padding:7px 9px; font-size:13px}
+  .builder.compact .choice-wrap{gap:5px}
+  .builder.compact .choice-pill{padding:4px 10px; font-size:11.5px}
+  .builder.compact .choice-hint{font-size:10.5px; margin-top:3px}
+  .builder.compact .output-box{min-height:88px; padding:14px; font-size:12.5px}
+  .builder.compact .copy-btn{padding:7px 14px; font-size:12.5px}
+
+  /* before/after */
+  .ba{display:flex; gap:16px; flex-wrap:wrap}
+  .ba > div{flex:1; min-width:260px; border-radius:20px; padding:22px}
+  .ba .bad{background:#fdecea; border:1px solid #e8a99c}
+  .ba .good{background:#e9f3ee; border:1px solid #a8d3bf}
+  .ba .tag{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase}
+
+  /* checklist */
+  .checklist{display:flex; flex-direction:column; gap:8px}
+  .check-item{
+    display:flex; align-items:center; gap:12px; background:var(--surface);
+    border:1px solid var(--border); border-radius:14px; padding:13px 16px; cursor:pointer;
+  }
+  .check-item input{width:20px; height:20px; accent-color:var(--teal); flex-shrink:0}
+  .check-item span{font-size:15px}
+  .check-item.done span{text-decoration:line-through; color:var(--label)}
+
+  .platform-card{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px}
+
+  .foot-card{background:var(--dark2); border-radius:16px; padding:20px}
+  .foot-card p:first-child{color:var(--coral-light); font-weight:600; margin-bottom:6px; font-size:14px}
+  .foot-card a{color:#a9d4d1; word-break:break-word; display:inline-flex; align-items:center; gap:6px; font-size:14px}
+
+  .reveal-q{background:var(--surface); border-radius:16px; padding:18px 22px; display:flex; gap:14px; align-items:flex-start}
+  .reveal-q .num{font-weight:700; color:var(--teal); font-size:18px}
+
+  .kicker-link{display:inline-flex; align-items:center; gap:6px; font-size:14px; margin-top:6px}
+
+  ::selection{background:var(--coral-light); color:#1c2321}
+</style>
+</head>
+<body>
+
+<div id="progressbar"></div>
+
+<nav id="topnav">
+  <div class="inner">
+    <span class="brand">LMS Content Studio</span>
+    <div id="navlinks">
+      <a data-jump="cover">Awal</a>
+      <a data-jump="profil">Profil</a>
+      <a data-jump="agenda">Agenda</a>
+      <a data-jump="divider-obe">1 · OBE</a>
+      <a data-jump="divider-aktivitas">2 · Aktivitas</a>
+      <a data-jump="divider-evaluasi">3 · Evaluasi</a>
+      <a data-jump="divider-miniproject">4 · Mini Project</a>
+      <a data-jump="closing">Penutup</a>
+    </div>
+  </div>
+</nav>
+
+<div id="deck">
+
+<!-- 1: COVER -->
+<section class="slide" id="cover" data-group="cover">
+  <div class="wrap" style="display:flex; flex-direction:column; height:100%; justify-content:center; gap:40px">
+    <div style="display:flex; flex-direction:column; gap:22px">
+      <p class="eyebrow">Workshop Peningkatan Kompetensi Dosen Pascasarjana UNISMA</p>
+      <h1 class="big-title">Interactive LMS<br>Content Studio</h1>
+      <p class="lead">Membuat modul digital, video, dan aktivitas belajar yang menarik — berbasis Outcome-Based Education. Semua contoh di sini bisa langsung dicoba: isi, klik, dan salin.</p>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:28px; padding-top:24px; border-top:1px solid var(--border)">
+      <div>
+        <p style="font-weight:600; font-size:16px">Fuad Dary Rosyadi, S.Kom., M.Kom.</p>
+        <p style="color:var(--text-dim); font-size:14px; margin-top:2px">Departemen Teknologi Informasi, Institut Teknologi Sepuluh Nopember (ITS)</p>
+      </div>
+      <div>
+        <p style="font-weight:600; font-size:16px">Senin, 28 September 2026 · 08.30–11.30 WIB</p>
+        <p style="color:var(--text-dim); font-size:14px; margin-top:2px">Gedung Pascasarjana (Ali bin Abi Thalib), UNISMA</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2a: PROFIL - IDENTITAS -->
+<section class="slide" id="profil" data-group="profil">
+  <div class="wrap" style="display:flex; gap:48px; align-items:center; flex-wrap:wrap">
+    <img src="assets/ea3ea5a18aa8086fa10262f5f8bc5f72.png" alt="Foto Fuad Dary Rosyadi" style="width:220px; height:220px; border-radius:24px; object-fit:cover; object-position:center 15%; flex-shrink:0; border:1px solid var(--border)">
+    <div style="flex:1; min-width:280px">
+      <p class="eyebrow">Narasumber</p>
+      <h2 class="big-title" style="font-size:clamp(28px,4vw,46px); margin-bottom:16px">Fuad Dary Rosyadi, S.Kom., M.Kom.</h2>
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <div style="display:flex; gap:12px; align-items:flex-start">
+          <div class="icon-circle" style="width:34px; height:34px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5V4.5Z"></path><path d="M20 19H6.5A2.5 2.5 0 0 0 4 21.5"></path></svg></div>
+          <div><p style="font-weight:600; font-size:15px">Pendidikan</p><p style="color:var(--text-dim); font-size:14px">S1 dan S2 Teknik Informatika, Institut Teknologi Sepuluh Nopember (ITS)</p></div>
+        </div>
+        <div style="display:flex; gap:12px; align-items:flex-start">
+          <div class="icon-circle" style="width:34px; height:34px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></div>
+          <div><p style="font-weight:600; font-size:15px">Aktivitas saat ini</p><p style="color:var(--text-dim); font-size:14px">Dosen Departemen Teknologi Informasi, ITS</p><p style="color:var(--text-dim); font-size:14px; margin-top:2px">Kalab Digital Education Services, DIRPAIP ITS</p></div>
+        </div>
+        <div style="display:flex; gap:12px; align-items:flex-start">
+          <div class="icon-circle" style="width:34px; height:34px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 6-10 7L2 6"></path></svg></div>
+          <div><p style="font-weight:600; font-size:15px">Email</p><p style="color:var(--text-dim); font-size:14px">rosyadi@its.ac.id</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2b: PROFIL - P3D DIKTI -->
+<section class="slide" id="profil-p3d" data-group="profil">
+  <div class="wrap" style="display:flex; gap:26px; align-items:center; flex-wrap:wrap">
+    <a href="https://kemdiktisaintek.go.id/news/article/terbaik-dalam-wujudkan-pembelajaran-digital-its-raih-penghargaan-p3d-dikti" target="_blank" rel="noopener" style="display:block; flex:1.3; min-width:360px; border-radius:18px; overflow:hidden; border:1px solid var(--border)">
+      <img src="assets/4bfd8c02c792adc7728b60ba00750500.png" alt="Berita penerimaan penghargaan P3D Dikti oleh ITS" style="width:100%; display:block; object-fit:cover">
+    </a>
+    <div style="flex:1; min-width:260px">
+      <p class="eyebrow">Rekam jejak di pengembangan pembelajaran digital</p>
+      <h2 class="mid-title" style="font-size:clamp(20px,2.6vw,28px)">Hibah P3D Dikti (2023–2024)</h2>
+      <div style="margin-top:14px">
+        <h3 style="font-size:15px">Perguruan Tinggi Pelaksana Terbaik ke-2, P3D Dikti 2023</h3>
+        <p style="color:var(--text-dim); margin-top:4px; font-size:13px">Bersama Henning Titi Ciptaningtyas, S.Kom., M.Kom. mengembangkan platform daring mata kuliah Teknologi Komputasi Awan.</p>
+        <a class="kicker-link" href="https://kemdiktisaintek.go.id/news/article/terbaik-dalam-wujudkan-pembelajaran-digital-its-raih-penghargaan-p3d-dikti" target="_blank" rel="noopener" style="font-size:13px">kemdiktisaintek.go.id <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a>
+      </div>
+      <div style="margin-top:14px">
+        <h3 style="font-size:15px">Course aktif di SPADA Indonesia</h3>
+        <p style="color:var(--text-dim); margin-top:4px; font-size:13px">Teknologi Komputasi Awan (ET234403) — semua contoh studi kasus di halaman ini diambil dari mata kuliah ini.</p>
+        <a class="kicker-link" href="https://lmsspada.kemdiktisaintek.go.id/course/view.php?id=3716" target="_blank" rel="noopener" style="font-size:13px">lmsspada.kemdiktisaintek.go.id <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2c: PROFIL - BUKU AJAR -->
+<section class="slide" id="profil-buku" data-group="profil">
+  <div class="wrap">
+    <p class="eyebrow">Berlanjut ke penulisan buku ajar (2024–2025)</p>
+    <h2 class="mid-title">Buku "Teknologi Komputasi Awan"</h2>
+    <div style="display:flex; gap:26px; align-items:center; flex-wrap:wrap">
+      <img src="assets/da90348e0799a8f716d64a437a2a067b.png" alt="Sampul buku Teknologi Komputasi Awan" style="width:220px; flex-shrink:0; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.25)">
+      <div style="flex:1; min-width:260px; display:flex; flex-direction:column; gap:12px">
+        <p style="color:var(--text-dim); font-size:15px">Kelanjutan dari pengembangan platform SPADA — materi yang sama dituangkan menjadi buku ajar cetak untuk mata kuliah Teknologi Komputasi Awan.</p>
+        <a class="kicker-link" href="https://www.gramedia.com/products/teknologi-komputasi-awan" target="_blank" rel="noopener" style="font-size:15px">gramedia.com <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2d: PROFIL - VIDEO RISET -->
+<section class="slide" id="profil-video" data-group="profil">
+  <div class="wrap">
+    <p class="eyebrow">Berlanjut ke video pembelajaran berbasis riset (2026)</p>
+    <h2 class="mid-title">Penerima Insentif Video Pembelajaran Berbasis Riset</h2>
+    <div style="display:flex; gap:26px; align-items:center; flex-wrap:wrap">
+      <a href="https://www.youtube.com/watch?v=oc2CbWb6DJw&list=PLWf3xsVuOxKY&index=1&t=1s" target="_blank" rel="noopener" class="video-frame" style="display:block; position:relative; flex:1.6; min-width:400px; border-radius:20px; overflow:hidden; padding-top:52%; text-decoration:none">
+        <img src="assets/4c45d8c2b2c37dc25446ab17218c8e73.png" alt="Thumbnail video pembelajaran berbasis riset" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover">
+        <span style="position:absolute; inset:0; background:rgba(10,20,20,0.22); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px">
+          <span style="width:64px; height:64px; border-radius:50%; background:rgba(226,98,43,0.92); display:flex; align-items:center; justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><polygon points="6 3 21 12 6 21 6 3"></polygon></svg></span>
+          <span style="color:#fff; font-size:12px; font-weight:600; background:rgba(0,0,0,0.35); padding:2px 8px; border-radius:8px">youtube.com</span>
+        </span>
+      </a>
+      <div style="flex:1; min-width:240px; display:flex; gap:14px">
+        <div class="icon-circle" style="flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></div>
+        <div>
+          <h3 style="font-size:16px">Program Ditjen Risbang, Kemdiktisaintek</h3>
+          <p style="color:var(--text-dim); margin-top:6px; font-size:13.5px">Program penguatan talenta akademik melalui produksi video pembelajaran berbasis riset, 2026.</p>
+          <a class="kicker-link" href="https://risbang.kemdiktisaintek.go.id/talenta/pengumuman/penerima-insentif-video-pembelajaran-berbasis-riset-2026" target="_blank" rel="noopener" style="font-size:13px">risbang.kemdiktisaintek.go.id <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3: AGENDA -->
+<section class="slide" id="agenda" data-group="agenda">
+  <div class="wrap">
+    <p class="eyebrow">08.30 – 11.30 WIB</p>
+    <h2 class="mid-title">Agenda hari ini</h2>
+    <table class="agenda">
+      <tr><th style="width:20%">Waktu</th><th style="width:38%">Segmen</th><th style="width:42%">Fokus</th></tr>
+      <tr><td>08.30–09.00</td><td>Pembukaan &amp; Desain LMS OBE</td><td style="color:var(--text-dim)">Peta CPMK ke aktivitas</td></tr>
+      <tr><td>09.00–10.00</td><td>Membangun Sumber &amp; Aktivitas</td><td style="color:var(--text-dim)">Storytelling &amp; microlearning, modul digital, video (Gemini Notebook), H5P (Lumi), tugas proyek — dibantu AI</td></tr>
+      <tr><td>10.00–10.10</td><td style="color:var(--text-dim)">Rehat sejenak</td><td style="color:var(--text-dim)">—</td></tr>
+      <tr><td>10.10–11.05</td><td>Merancang Evaluasi</td><td style="color:var(--text-dim)">Kuis, HOTS+rubrik, rubrik proyek, presentasi, portofolio — dibantu AI</td></tr>
+      <tr><td>11.05–11.30</td><td>Mini Project &amp; Penutup</td><td style="color:var(--text-dim)">Modul digital mini</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 4: TUJUAN -->
+<section class="slide" id="tujuan" data-group="agenda">
+  <div class="wrap">
+    <p class="eyebrow">Tujuan &amp; Luaran</p>
+    <h2 class="mid-title">Capaian dari workshop ini</h2>
+    <div class="grid grid-2">
+      <div class="card" style="display:flex; gap:14px"><div class="icon-circle"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="12"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="20" y1="20" x2="20" y2="8"></line></svg></div><div><h3 style="font-size:17px">Peta CPMK ke aktivitas OBE</h3><p style="color:var(--text-dim); margin-top:6px; font-size:14px">Mampu memetakan CPMK ke jenis aktivitas LMS yang tepat.</p></div></div>
+      <div class="card" style="display:flex; gap:14px"><div class="icon-circle"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5V4.5Z"></path><path d="M20 19H6.5A2.5 2.5 0 0 0 4 21.5"></path></svg></div><div><h3 style="font-size:17px">Modul microlearning &amp; storytelling</h3><p style="color:var(--text-dim); margin-top:6px; font-size:14px">Menyusun konten digital ringkas dan mudah diingat.</p></div></div>
+      <div class="card" style="display:flex; gap:14px"><div class="icon-circle"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="15" height="14" rx="2"></rect><path d="m17 10 5-3v10l-5-3"></path></svg></div><div><h3 style="font-size:17px">Audio/video pembelajaran singkat</h3><p style="color:var(--text-dim); margin-top:6px; font-size:14px">Produksi cepat dengan bantuan AI, tanpa keahlian editing.</p></div></div>
+      <div class="card" style="display:flex; gap:14px"><div class="icon-circle"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 3 3 5-6"></path></svg></div><div><h3 style="font-size:17px">Soal HOTS &amp; rubrik penilaian</h3><p style="color:var(--text-dim); margin-top:6px; font-size:14px">Menyusun asesmen level analisis-evaluasi-kreasi.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5: DIVIDER OBE -->
+<section class="slide divider-slide" id="divider-obe" data-group="divider-obe" style="background:var(--teal); color:var(--dark-text)">
+  <div class="wrap">
+    <p class="eyebrow" style="color:var(--coral-light)">Segmen 1 · 08.30–09.00</p>
+    <h2 style="color:#fff; font-size:clamp(32px,5vw,58px); font-weight:600; line-height:1.1">Desain LMS<br>berbasis OBE</h2>
+  </div>
+</section>
+
+<!-- 5a: APA ITU OBE -->
+<section class="slide" id="obe-definisi" data-group="divider-obe">
+  <div class="wrap">
+    <p class="eyebrow">Sebelum masuk ke alur</p>
+    <h2 class="mid-title">Apa itu OBE, dan apa bedanya?</h2>
+    <p style="color:var(--text-dim); font-size:15px; margin-bottom:20px; max-width:900px">Outcome-Based Education (OBE) adalah pendekatan yang merancang seluruh proses belajar — materi, aktivitas, dan penilaian — mulai dari capaian pembelajaran yang ingin dicapai, bukan dari daftar topik yang harus disampaikan.</p>
+    <table class="agenda">
+      <tr><th style="width:26%">Aspek</th><th style="width:37%">Pendekatan tradisional</th><th style="width:37%; background:var(--coral)">Outcome-Based Education</th></tr>
+      <tr><td>Titik awal perancangan</td><td style="color:var(--text-dim)">Daftar topik/bab yang harus diajarkan</td><td style="background:#fdf1ea">Capaian pembelajaran (CPMK) yang harus dikuasai</td></tr>
+      <tr><td>Fokus utama</td><td style="color:var(--text-dim)">Menyampaikan materi selengkap mungkin</td><td style="background:#fdf1ea">Memastikan kompetensi yang terukur benar-benar tercapai</td></tr>
+      <tr><td>Peran dosen</td><td style="color:var(--text-dim)">Sumber utama informasi di kelas</td><td style="background:#fdf1ea">Perancang pengalaman belajar &amp; aktivitas</td></tr>
+      <tr><td>Waktu penilaian</td><td style="color:var(--text-dim)">Di akhir, menguji hafalan/pemahaman materi</td><td style="background:#fdf1ea">Berkelanjutan, menguji pencapaian tiap Sub-CPMK</td></tr>
+      <tr><td>Ukuran keberhasilan</td><td style="color:var(--text-dim)">Materi tersampaikan sesuai silabus</td><td style="background:#fdf1ea">Mahasiswa mampu menunjukkan kompetensi yang dijanjikan</td></tr>
+    </table>
+    <p style="color:var(--text-dim); font-size:14px; margin-top:16px">Implikasinya: modul, video, dan soal yang disusun di workshop ini selalu diturunkan dari Sub-CPMK terlebih dulu — bukan sebaliknya.</p>
+  </div>
+</section>
+
+<!-- 6: OBE CONCEPT -->
+<section class="slide" id="obe-concept" data-group="divider-obe">
+  <div class="wrap">
+    <h2 class="mid-title">Alur berpikir OBE: dari capaian ke aktivitas</h2>
+    <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px; max-width:820px">Empat langkah ini selalu berurutan — setiap langkah menurunkan langkah sebelumnya menjadi lebih konkret dan terukur. Poin 3 dan 4 adalah fokus utama workshop hari ini.</p>
+    <div class="flow" style="margin-bottom:8px; align-items:stretch">
+      <div class="node">
+        <p class="num">1 · CPMK</p>
+        <h4 style="font-size:16px; margin-top:6px">Capaian mata kuliah</h4>
+        <p style="font-size:13.5px; margin-top:6px">Kompetensi besar yang ingin dicapai di akhir mata kuliah.</p>
+      </div>
+      <div class="arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg></div>
+      <div class="node">
+        <p class="num">2 · Sub-CPMK</p>
+        <h4 style="font-size:16px; margin-top:6px">Indikator yang terukur</h4>
+        <p style="font-size:13.5px; margin-top:6px">CPMK dipecah jadi kemampuan spesifik per pertemuan/topik.</p>
+      </div>
+      <div class="arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg></div>
+      <div class="node" style="background:var(--coral); position:relative; border:2px solid var(--coral-light)">
+        <span style="position:absolute; top:-11px; right:10px; background:var(--coral-light); color:#1c2321; font-size:10px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; padding:3px 9px; border-radius:999px">Fokus workshop</span>
+        <p class="num" style="color:#fde3d3">3 · Aktivitas LMS</p>
+        <h4 style="font-size:16px; margin-top:6px; color:#fff">Wujud nyata pembelajaran</h4>
+        <p style="font-size:13.5px; margin-top:6px; color:#fde3d3">Materi, diskusi, kuis, tugas, atau video yang melatih Sub-CPMK tersebut.</p>
+      </div>
+      <div class="arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg></div>
+      <div class="node" style="background:var(--coral); position:relative; border:2px solid var(--coral-light)">
+        <span style="position:absolute; top:-11px; right:10px; background:var(--coral-light); color:#1c2321; font-size:10px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; padding:3px 9px; border-radius:999px">Fokus workshop</span>
+        <p class="num" style="color:#fde3d3">4 · Asesmen</p>
+        <h4 style="font-size:16px; margin-top:6px; color:#fff">Alat ukur pencapaian</h4>
+        <p style="font-size:13.5px; margin-top:6px; color:#fde3d3">Soal, tugas, atau rubrik yang membuktikan Sub-CPMK tercapai.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7: TAKSONOMI BLOOM & OBE -->
+<section class="slide" id="bloom-obe" data-group="divider-obe">
+  <div class="wrap">
+    <p class="eyebrow">Sebelum memilih aktivitas &amp; evaluasi</p>
+    <h2 class="mid-title">Taksonomi Bloom: penentu level Sub-CPMK</h2>
+    <p style="color:var(--text-dim); font-size:14px; margin-bottom:18px; max-width:860px">Kata kerja operasional pada Sub-CPMK menentukan level kognitif yang dituju. Level inilah yang lalu menentukan jenis aktivitas dan evaluasi yang tepat dipilih pada poin 3 &amp; 4 sebelumnya.</p>
+    <div class="grid grid-3" style="margin-bottom:14px">
+      <div class="card" style="background:var(--bg-alt); border-color:var(--border)">
+        <p style="font-weight:700; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--teal)">LOTS · Dasar</p>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px">
+          <div><span style="font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--teal)">C1</span> <span style="font-weight:600">Mengingat</span><p style="font-size:12.5px; color:var(--text-dim)">Menyebutkan, mendefinisikan istilah/fakta.</p></div>
+          <div><span style="font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--teal)">C2</span> <span style="font-weight:600">Memahami</span><p style="font-size:12.5px; color:var(--text-dim)">Menjelaskan, membandingkan konsep.</p></div>
+          <div><span style="font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--teal)">C3</span> <span style="font-weight:600">Menerapkan</span><p style="font-size:12.5px; color:var(--text-dim)">Menggunakan konsep pada kasus sederhana.</p></div>
+        </div>
+      </div>
+      <div class="card" style="background:#fdf1ea; border-color:var(--coral-light)">
+        <p style="font-weight:700; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--coral)">HOTS · Tinggi</p>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px">
+          <div><span style="font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--coral)">C4</span> <span style="font-weight:600">Menganalisis</span><p style="font-size:12.5px; color:var(--text-dim)">Menguraikan, membedah komponen masalah.</p></div>
+          <div><span style="font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--coral)">C5</span> <span style="font-weight:600">Mengevaluasi</span><p style="font-size:12.5px; color:var(--text-dim)">Menilai, memberi argumen atas suatu solusi.</p></div>
+          <div><span style="font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--coral)">C6</span> <span style="font-weight:600">Mencipta</span><p style="font-size:12.5px; color:var(--text-dim)">Merancang, mengonstruksi solusi baru.</p></div>
+        </div>
+      </div>
+      <div class="card" style="display:flex; flex-direction:column; justify-content:center; gap:10px; background:var(--dark); border:none">
+        <p style="color:var(--coral-light); font-weight:600; font-size:14px">Kaitan dengan OBE</p>
+        <p style="color:var(--dark-text); font-size:13.5px; line-height:1.65">Level rendah (C1–C3) cocok dengan kuis otomatis &amp; modul singkat. Level tinggi (C4–C6) butuh tugas proyek, diskusi, dan rubrik — bukan sekadar pilihan ganda.</p>
+      </div>
+    </div>
+    <p style="color:var(--label); font-size:12px">Sumber: Revisi Taksonomi Bloom (Anderson &amp; Krathwohl) &amp; Pedoman Perkuliahan Hybrid, 2025.</p>
+  </div>
+</section>
+
+<!-- 8: OBE STRUKTUR -->
+<section class="slide" id="obe-struktur" data-group="divider-obe">
+  <div class="wrap">
+    <p class="eyebrow">Struktur satu topik materi</p>
+    <h2 class="mid-title">Tiga bagian yang selalu ada</h2>
+    <div class="flow" style="margin-bottom:24px">
+      <div class="node" style="background:var(--teal)"><p class="num">A</p><h4>Pengantar Topik</h4><p style="font-size:14px">Sapaan, deskripsi, sub-capaian, indikator, skenario pembelajaran.</p></div>
+      <div class="arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg></div>
+      <div class="node" style="background:var(--teal)"><p class="num">B</p><h4>Sumber &amp; Aktivitas</h4><p style="font-size:14px">Materi dan cara mahasiswa terlibat dengannya.</p></div>
+      <div class="arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg></div>
+      <div class="node" style="background:var(--coral)"><p class="num" style="color:#fde3d3">C</p><h4>Evaluasi</h4><p style="font-size:14px; color:#fde3d3">Minimal 1 bentuk asesmen.</p></div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <p style="font-weight:600; font-size:15px; color:var(--teal)">B · Pilihan Sumber &amp; Aktivitas</p>
+        <p style="color:var(--label); font-size:12px; margin-top:4px; margin-bottom:10px">Semua bisa dibuat dengan tools di workshop ini — pilih sesuai level Bloom Sub-CPMK</p>
+        <div style="display:flex; flex-direction:column; gap:9px">
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Modul digital — storytelling &amp; microlearning</strong> — draf dari prompt builder di segmen Aktivitas, untuk penjelasan konsep dasar (PDF/PPT/HTML).</p><span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px; white-space:nowrap; height:fit-content">C1–C2</span></div>
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Video pembelajaran singkat — Google Gemini Notebook</strong> — Explainer/Short/Cinematic, untuk demonstrasi proses.</p><span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px; white-space:nowrap; height:fit-content">C2–C3</span></div>
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Konten interaktif — H5P via Lumi</strong> — drag-drop, hotspot, branching untuk latihan penerapan.</p><span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px; white-space:nowrap; height:fit-content">C3</span></div>
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Tugas proyek/studi kasus — PBL/PjBL/CBL/TBL</strong> — penerapan menyeluruh pada masalah nyata, pilih teknik sesuai tujuan.</p><span class="pill" style="background:#fdf1ea; color:var(--coral); font-size:11px; white-space:nowrap; height:fit-content">C5–C6</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <p style="font-weight:600; font-size:15px; color:var(--coral)">C · Pilihan Evaluasi</p>
+        <p style="color:var(--label); font-size:12px; margin-top:4px; margin-bottom:10px">Pilih minimal satu, sesuai level Bloom yang dituju</p>
+        <div style="display:flex; flex-direction:column; gap:9px">
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Kuis otomatis — Wayground / Google Form</strong> — cek pemahaman cepat, skor langsung.</p><span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px; white-space:nowrap; height:fit-content">C1–C3</span></div>
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Soal HOTS + rubrik penilaian</strong> — kerangka di segmen Evaluasi, menguji analisis–evaluasi–kreasi.</p><span class="pill" style="background:#fdf1ea; color:var(--coral); font-size:11px; white-space:nowrap; height:fit-content">C4–C6</span></div>
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Presentasi atau demo hasil kerja</strong> — menilai komunikasi &amp; penguasaan materi.</p><span class="pill" style="background:#fdf1ea; color:var(--coral); font-size:11px; white-space:nowrap; height:fit-content">C4–C5</span></div>
+          <div style="display:flex; justify-content:space-between; gap:10px"><p style="font-size:13.5px; color:var(--text-dim)"><strong style="color:var(--text)">Portofolio digital</strong> — rekam jejak perkembangan kompetensi sepanjang semester.</p><span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px; white-space:nowrap; height:fit-content">Semua level</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8b: OBE CONTOH STEP-BY-STEP -->
+<section class="slide" id="obe-contoh" data-group="divider-obe">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:22px; font-weight:600">Contoh langkah demi langkah</h2>
+      <p style="color:var(--label); font-size:12.5px">Studi kasus Komputasi Awan — dari CPMK sampai evaluasi</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <div class="reveal-q" style="padding:12px 16px"><span class="num" style="font-size:15px">1</span><div><p style="font-weight:600; font-size:13px; color:var(--teal)">CPMK</p><p style="margin-top:2px; font-size:13px">Merancang dan menerapkan teknologi cloud computing untuk memenuhi kebutuhan organisasi.</p></div></div>
+      <div class="reveal-q" style="padding:12px 16px"><span class="num" style="font-size:15px">2</span><div><p style="font-weight:600; font-size:13px; color:var(--teal)">Sub-CPMK</p><p style="margin-top:2px; font-size:13px">Merancang orkestrasi kontainer multi-layanan menggunakan Kubernetes.</p></div></div>
+      <div class="reveal-q" style="background:var(--coral); padding:12px 16px"><span class="num" style="color:#fde3d3; font-size:15px">3</span><div><p style="font-weight:600; font-size:13px; color:#fde3d3">Kata kerja &amp; level Bloom</p><p style="margin-top:2px; font-size:13px; color:#fff">Merancang, mengonstruksi — C6 (Kreasi)</p></div></div>
+      <div class="reveal-q" style="background:var(--dark); padding:12px 16px"><span class="num" style="color:var(--coral-light); font-size:15px">4 → 5</span><div style="flex:1"><div style="display:flex; gap:14px; font-weight:600; font-size:13px; color:var(--coral-light); margin-bottom:6px"><p style="flex:1">Sumber &amp; Aktivitas dipilih</p><p style="flex:1">Evaluasi dipilih</p></div>
+        <div style="display:flex; gap:14px; align-items:center; padding:6px 0; border-top:1px solid rgba(255,255,255,0.08)"><p style="flex:1; font-size:12.5px; color:var(--dark-text)">Tugas proyek — instalasi &amp; konfigurasi cluster Kubernetes</p><span style="color:var(--label)">→</span><p style="flex:1; font-size:12.5px; color:var(--dark-text)">Rubrik proyek (QuickRubric) C6 — ketepatan konfigurasi &amp; orisinalitas solusi</p></div>
+        <div style="display:flex; gap:14px; align-items:center; padding:6px 0; border-top:1px solid rgba(255,255,255,0.08)"><p style="flex:1; font-size:12.5px; color:var(--dark-text)">Video screencast 1–2 menit sebagai dokumentasi</p><span style="color:var(--label)">→</span><p style="flex:1; font-size:12.5px; color:var(--dark-text)">Penilaian kejelasan dokumentasi, dibahas lewat presentasi/demo</p></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9: OBE LATIHAN — LEMBAR KERJA -->
+<section class="slide" id="obe-latihan" data-group="divider-obe">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:22px; font-weight:600">Lembar Kerja · Petakan satu Sub-CPMK</h2>
+      <p style="color:var(--label); font-size:12.5px">Tulis Sub-CPMK, lalu pilih levelnya (boleh lebih dari satu pilihan per kategori)</p>
+    </div>
+    <div class="builder compact" id="worksheet-obe"></div>
+  </div>
+</section>
+
+<!-- SEGMEN 2: DIVIDER AKTIVITAS -->
+<section class="slide divider-slide" id="divider-aktivitas" data-group="divider-aktivitas" style="background:var(--teal); color:var(--dark-text)">
+  <div class="wrap">
+    <p class="eyebrow" style="color:var(--coral-light)">Segmen 2 · 09.00–10.00</p>
+    <h2 style="color:#fff; font-size:clamp(32px,5vw,58px); font-weight:600; line-height:1.1">Membangun Sumber<br>&amp; Aktivitas</h2>
+    <p style="color:var(--dark-text); font-size:18px; margin-top:14px; max-width:700px">Modul digital, video, dan aktivitas belajar yang menarik — dibantu AI, dieksekusi lewat tools nyata.</p>
+  </div>
+</section>
+
+<!-- KONSEP: STORYTELLING & MICROLEARNING -->
+<section class="slide" id="konsep-storytelling" data-group="divider-aktivitas">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Konsep Dasar — Storytelling &amp; Microlearning</h2>
+      <span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px">C1–C2</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:12.5px; margin-bottom:10px; max-width:1000px"><strong style="color:var(--text)">Kenapa penting:</strong> dua prinsip ini mendasari materi yang akan kita buat di slide-slide berikutnya (modul digital &amp; video) — jadi cukup dipahami sekali di sini, lalu tinggal diterapkan.</p>
+    <div class="grid grid-4" style="margin-bottom:10px">
+      <div class="card" style="padding:10px 12px"><p style="font-weight:700; font-size:11.5px; color:var(--teal)">1 · Masalah</p><p style="font-size:11.5px; color:var(--text-dim); margin-top:2px">Situasi nyata yang dialami mahasiswa</p></div>
+      <div class="card" style="padding:10px 12px"><p style="font-weight:700; font-size:11.5px; color:var(--teal)">2 · Konflik</p><p style="font-size:11.5px; color:var(--text-dim); margin-top:2px">Mengapa masalah ini sulit diselesaikan</p></div>
+      <div class="card" style="padding:10px 12px"><p style="font-weight:700; font-size:11.5px; color:var(--teal)">3 · Solusi</p><p style="font-size:11.5px; color:var(--text-dim); margin-top:2px">Konsep inti, maksimal 3 poin kunci</p></div>
+      <div class="card" style="padding:10px 12px"><p style="font-weight:700; font-size:11.5px; color:var(--teal)">4 · Refleksi</p><p style="font-size:11.5px; color:var(--text-dim); margin-top:2px">Pertanyaan/mini-kuis penutup</p></div>
+    </div>
+    <p style="color:var(--label); font-size:11.5px; margin-bottom:0">Prinsip microlearning: satu unit = satu tujuan, durasi tempuh 3–7 menit (baca) atau &lt;5 menit (tonton). Struktur Masalah–Konflik–Solusi–Refleksi ini yang akan dipakai baik untuk modul teks/PDF/PPT/HTML maupun untuk naskah video singkat di slide berikutnya.</p>
+  </div>
+</section>
+
+<!-- AKTIVITAS 1: MODUL DIGITAL -->
+<section class="slide" id="akt-modul" data-group="divider-aktivitas">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Pembuatan Modul Digital</h2>
+      <span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px">C1–C2</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:10px; max-width:1000px"><strong style="color:var(--text)">Kapan:</strong> menjelaskan konsep dasar sebelum aktivitas praktik, dikemas jadi unit belajar singkat yang mudah diingat. Gunakan struktur storytelling (Masalah–Konflik–Solusi–Refleksi) dari slide sebelumnya.</p>
+    <p style="color:var(--label); font-size:11.5px; margin-bottom:10px">Langkah: pilih format keluaran (PDF/PPT/HTML) → AI generate draf storytelling sesuai struktur + sisipkan cek pemahaman tiap 2 bagian → rapikan → unggah ke LMS.</p>
+    <div class="builder compact" id="builder-modul"></div>
+  </div>
+</section>
+
+<!-- AKTIVITAS 2: VIDEO -->
+<section class="slide" id="akt-video" data-group="divider-aktivitas">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Pembuatan Video Pembelajaran — Google Gemini Notebook</h2>
+      <span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px">C2–C3</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:12px; margin-bottom:8px; max-width:1000px"><strong style="color:var(--text)">Langkah:</strong> unggah materi ke notebook → panel Studio → pilih jenis video → generate → unduh/tonton → unggah ke LMS.</p>
+    <div class="grid grid-3" style="margin-bottom:8px">
+      <div class="card" style="padding:10px 12px; border-color:var(--teal)">
+        <p style="font-weight:700; font-size:12.5px; color:var(--teal)">Explainer</p>
+        <p style="font-size:11px; color:var(--text-dim); margin-top:3px">Ringkasan terstruktur yang menghubungkan tiap konsep dalam materi. 80+ bahasa termasuk Indonesia, gaya visual bisa dikustomisasi.</p>
+      </div>
+      <div class="card" style="padding:10px 12px">
+        <p style="font-weight:700; font-size:12.5px; color:var(--teal)">Short</p>
+        <p style="font-size:11px; color:var(--text-dim); margin-top:3px">Video ~60 detik, langsung ke poin-poin inti. 70+ bahasa, pilihan gaya visual lebih terbatas.</p>
+      </div>
+      <div class="card" style="padding:10px 12px; background:var(--bg-alt); border-style:dashed">
+        <p style="font-weight:700; font-size:12.5px; color:var(--text)">Cinematic</p>
+        <p style="font-size:11px; color:var(--text-dim); margin-top:3px">Gaya naratif &amp; visual yang lebih imersif untuk ide kompleks. Narasi baru tersedia dalam Bahasa Inggris, tanpa kustomisasi gaya.</p>
+      </div>
+    </div>
+    <p style="color:var(--label); font-size:10.5px; margin-bottom:10px">Semua jenis video bersifat AI-generated (berpotensi ada kekeliruan) dan proses generate bisa memakan waktu &gt;30 menit.</p>
+    <div class="builder compact" id="builder-video"></div>
+  </div>
+</section>
+
+<!-- AKTIVITAS 3: H5P via LUMI -->
+<section class="slide" id="akt-h5p" data-group="divider-aktivitas">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Konten Interaktif H5P — via Lumi (hosted cloud)</h2>
+      <span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px">C3</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:8px; max-width:1000px"><strong style="color:var(--text)">Kapan:</strong> melatih penerapan langsung lewat interaksi (drag-drop, hotspot, branching, dsb.) tanpa perlu install server H5P sendiri — cukup pakai Lumi Cloud (<span style="color:var(--teal)">app.lumi.education</span>).</p>
+    <div class="grid grid-5" style="margin-bottom:8px">
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">1 · Daftar/Masuk</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">app.lumi.education, via Google/Microsoft/GitHub/email</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">2 · New Content</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">"Create H5P Content" → pilih dari 50+ tipe (cek "Details" utk pratinjau)</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">3 · Isi (Edit)</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">Tempel hasil AI ke tab Edit — teks, gambar, feedback benar/salah</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">4 · Save &amp; View</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">Simpan (kanan atas) → tab View untuk pratinjau hasil jadi</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">5 · Share</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">Link/embed/QR ke LMS, atau Download (H5P/SCORM/HTML)</p></div>
+    </div>
+    <p style="color:var(--label); font-size:10.5px; margin-bottom:10px"><strong style="color:var(--text)">Tipe konten yang relevan:</strong> Course Presentation, Drag and Drop, Image Hotspots, Branching Scenario, Interactive Video, Question Set. <strong style="color:var(--text)">Paket:</strong> Free (konten tanpa batas, unggahan maks 15 MB) sudah cukup untuk kelas biasa; Pro ($10/bln atau $100/thn, maks 500 MB) menambah fitur feedback individual per mahasiswa.</p>
+    <div class="builder compact" id="builder-h5p"></div>
+  </div>
+</section>
+
+<!-- AKTIVITAS 4: TUGAS PROYEK & STUDI KASUS -->
+<section class="slide" id="akt-proyek" data-group="divider-aktivitas">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Tugas Proyek &amp; Studi Kasus — Pilih Teknik Pembelajaran</h2>
+      <span class="pill" style="background:#fdf1ea; color:var(--coral); font-size:11px">C5–C6</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:8px; max-width:1000px"><strong style="color:var(--text)">Kapan:</strong> menguji penerapan menyeluruh pada masalah nyata (capstone kecil). Pilih teknik sesuai tujuan pembelajaran — AI membantu susun brief, kriteria, dan skenario sesuai teknik yang dipilih.</p>
+    <div class="grid grid-4" style="margin-bottom:8px">
+      <div class="card" style="padding:9px 10px; border-color:var(--teal)">
+        <p style="font-weight:700; font-size:12px; color:var(--teal)">Problem-Based (PBL)</p>
+        <p style="font-size:10.5px; color:var(--text-dim); margin-top:3px">Mulai dari masalah nyata yang belum terstruktur; mahasiswa mencari sendiri konsep &amp; solusinya, dosen jadi fasilitator.</p>
+        <p style="font-size:10px; color:var(--coral); margin-top:4px; font-weight:600">Contoh: "organisasi X kesulitan skalabilitas — rancang solusinya."</p>
+      </div>
+      <div class="card" style="padding:9px 10px; border-color:var(--teal)">
+        <p style="font-weight:700; font-size:12px; color:var(--teal)">Project-Based (PjBL)</p>
+        <p style="font-size:10.5px; color:var(--text-dim); margin-top:3px">Mahasiswa mengerjakan proyek nyata sepanjang periode waktu tertentu hingga menghasilkan produk/deliverable konkret.</p>
+        <p style="font-size:10px; color:var(--coral); margin-top:4px; font-weight:600">Contoh: bangun &amp; deploy aplikasi di cluster Kubernetes dalam 3 minggu.</p>
+      </div>
+      <div class="card" style="padding:9px 10px; border-color:var(--teal)">
+        <p style="font-weight:700; font-size:12px; color:var(--teal)">Case-Based (CBL)</p>
+        <p style="font-size:10.5px; color:var(--text-dim); margin-top:3px">Analisis studi kasus otentik yang sudah terjadi; mahasiswa mendiskusikan &amp; mengevaluasi keputusan yang diambil.</p>
+        <p style="font-size:10px; color:var(--coral); margin-top:4px; font-weight:600">Contoh: bedah insiden downtime layanan cloud sebuah perusahaan.</p>
+      </div>
+      <div class="card" style="padding:9px 10px; border-color:var(--teal)">
+        <p style="font-weight:700; font-size:12px; color:var(--teal)">Team-Based (TBL)</p>
+        <p style="font-size:10.5px; color:var(--text-dim); margin-top:3px">Belajar mandiri dulu (readiness test individu &amp; tim), lalu terapkan konsep bersama tim saat sesi kelas.</p>
+        <p style="font-size:10px; color:var(--coral); margin-top:4px; font-weight:600">Contoh: tim rancang arsitektur cloud, lalu presentasikan &amp; saling menilai.</p>
+      </div>
+    </div>
+    <div class="builder compact" id="builder-proyek"></div>
+  </div>
+</section>
+
+<!-- BREAK -->
+<section class="slide divider-slide" id="break" data-group="break" style="background:var(--dark); color:var(--bg); align-items:center; text-align:center">
+  <div class="wrap" style="display:flex; flex-direction:column; align-items:center; gap:14px">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="var(--coral-light)"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>
+    <h2 style="color:#fff; font-size:clamp(30px,5vw,50px)">Rehat sejenak</h2>
+    <p style="color:var(--dark-text); font-size:18px">10.00 – 10.10 WIB</p>
+  </div>
+</section>
+
+<!-- SEGMEN 3: DIVIDER EVALUASI -->
+<section class="slide divider-slide" id="divider-evaluasi" data-group="divider-evaluasi" style="background:var(--teal); color:var(--dark-text)">
+  <div class="wrap">
+    <p class="eyebrow" style="color:var(--coral-light)">Segmen 3 · 10.10–11.05</p>
+    <h2 style="color:#fff; font-size:clamp(32px,5vw,58px); font-weight:600; line-height:1.1">Merancang<br>Evaluasi</h2>
+    <p style="color:var(--dark-text); font-size:18px; margin-top:14px; max-width:700px">Lima cara menilai capaian — dari kuis otomatis sampai portofolio, dibantu AI.</p>
+  </div>
+</section>
+
+<!-- EVALUASI 1: KUIS OTOMATIS -->
+<section class="slide" id="eval-kuis" data-group="divider-evaluasi">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Kuis Otomatis — Wayground (dulu Quizizz)</h2>
+      <span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px">C1–C3</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:8px; max-width:1000px"><strong style="color:var(--text)">Kapan:</strong> cek pemahaman cepat dengan skor &amp; leaderboard langsung. Wayground punya fitur AI bawaan (Wayground AI) untuk generate soal otomatis dari prompt, dokumen, atau video.</p>
+    <div class="grid grid-5" style="margin-bottom:8px">
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">1 · Create</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">wayground.com → tombol "Create" → pilih Quiz/Assessment</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">2 · Generate with AI</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">Pilih sumber: Prompt/Teks, Dokumen (PDF/PPT/DOC/gambar), atau video YouTube</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">3 · Atur preferensi</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">Jumlah soal, jenjang, mapel, bahasa → Generate</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">4 · Review &amp; Publish</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">Cek/edit tiap soal (akurasi AI bervariasi) → Publish</p></div>
+      <div class="card" style="padding:8px 9px"><p style="font-weight:700; font-size:10.5px; color:var(--teal)">5 · Bagikan</p><p style="font-size:10.5px; color:var(--text-dim); margin-top:2px">Live game (kode/QR) atau assign PR via link/Google Classroom</p></div>
+    </div>
+    <p style="color:var(--label); font-size:10.5px; margin-bottom:10px"><strong style="color:var(--text)">Teknik prompting:</strong> sertakan topik spesifik + jenjang/mapel + jumlah soal + level kognitif (Bloom) yang diinginkan agar soal tidak generik — jika dari dokumen, unggah materi kuliah asli (maks ± 16.000 karakter terbaca) supaya soal sesuai konten yang diajarkan, bukan pengetahuan umum AI.</p>
+    <div class="builder compact" id="builder-kuis"></div>
+  </div>
+</section>
+
+<!-- EVALUASI 2: HOTS + RUBRIK -->
+<section class="slide" id="eval-hots" data-group="divider-evaluasi">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Soal HOTS + Rubrik</h2>
+      <span class="pill" style="background:#fdf1ea; color:var(--coral); font-size:11px">C4–C6</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:12px; max-width:900px"><strong style="color:var(--text)">Kapan:</strong> menguji analisis–evaluasi–kreasi, dinilai manual. <strong style="color:var(--text)">Langkah:</strong> AI buat soal HOTS + rubrik 4 level → sesuaikan kata kerja dengan level Bloom yang dituju → bagikan ke mahasiswa sebelum pengerjaan.</p>
+    <div class="builder compact" id="builder-hots"></div>
+    <p style="color:var(--label); margin-top:8px; font-size:11.5px">Alternatif tools rubrik: QuickRubric atau Rubistar.</p>
+  </div>
+</section>
+
+<!-- EVALUASI 3: RUBRIK PROYEK -->
+<!-- EVALUASI 4: PRESENTASI -->
+<section class="slide" id="eval-presentasi" data-group="divider-evaluasi">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Presentasi/Demo Hasil Kerja</h2>
+      <span class="pill" style="background:#fdf1ea; color:var(--coral); font-size:11px">C4–C5</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:12px; max-width:900px"><strong style="color:var(--text)">Kapan:</strong> menilai komunikasi &amp; penguasaan materi secara langsung. <strong style="color:var(--text)">Langkah:</strong> AI susun pertanyaan pendalaman + indikator penilaian → jadwalkan sesi 5–10 menit/mahasiswa → nilai dengan indikator yang sudah disiapkan.</p>
+    <div class="builder compact" id="builder-presentasi"></div>
+  </div>
+</section>
+
+<!-- EVALUASI 5: PORTOFOLIO -->
+<section class="slide" id="eval-portofolio" data-group="divider-evaluasi">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px">
+      <h2 style="font-family:'Newsreader',Georgia,serif; font-size:21px; font-weight:600">Portofolio Digital</h2>
+      <span class="pill" style="background:var(--bg-alt); color:var(--teal); font-size:11px">Semua level</span>
+    </div>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:12px; max-width:900px"><strong style="color:var(--text)">Kapan:</strong> merekam jejak perkembangan kompetensi sepanjang semester. <strong style="color:var(--text)">Langkah:</strong> AI susun struktur portofolio berdasar Sub-CPMK → siapkan folder bersama (Drive/Padlet) → mahasiswa unggah bukti karya per topik.</p>
+    <div class="builder compact" id="builder-portofolio"></div>
+  </div>
+</section>
+
+<!-- 24: DIVIDER MINIPROJECT -->
+<section class="slide divider-slide" id="divider-miniproject" data-group="divider-miniproject" style="background:var(--teal); color:var(--dark-text)">
+  <div class="wrap">
+    <p class="eyebrow" style="color:var(--coral-light)">Segmen 4 · 11.05–11.30</p>
+    <h2 style="color:#fff; font-size:clamp(32px,5vw,58px); font-weight:600; line-height:1.1">Mini Project<br>&amp; Penutup</h2>
+    <p style="color:var(--dark-text); font-size:18px; margin-top:14px; max-width:700px">Rangkai semuanya jadi satu modul digital mini.</p>
+  </div>
+</section>
+
+<!-- 25: MINIPROJECT STEPS -->
+<section class="slide" id="miniproject-steps" data-group="divider-miniproject">
+  <div class="wrap">
+    <p class="eyebrow">Lembar Kerja Mini Project</p>
+    <h2 class="mid-title">Rangkai hasil hari ini jadi 1 modul digital mini</h2>
+    <p style="color:var(--text-dim); margin-bottom:16px; font-size:14px">Centang tiap langkah yang sudah selesai:</p>
+    <div class="checklist" id="miniproject-checklist" style="margin-bottom:24px">
+      <label class="check-item"><input type="checkbox" data-step="1"><span>1 · Tentukan topik &amp; Sub-CPMK (lembar kerja Segmen 1)</span></label>
+      <label class="check-item"><input type="checkbox" data-step="2"><span>2 · Susun draf modul/video dengan builder Aktivitas</span></label>
+      <label class="check-item"><input type="checkbox" data-step="3"><span>3 · Susun soal/rubrik dengan builder Evaluasi</span></label>
+      <label class="check-item"><input type="checkbox" data-step="4"><span>4 · Pilih 1 tools untuk realisasikan (H5P/Gemini Notebook/Wayground, dll)</span></label>
+      <label class="check-item"><input type="checkbox" data-step="5"><span>5 · Cek kembali pemetaan Sub-CPMK → aktivitas → evaluasi</span></label>
+    </div>
+    <div class="card" style="background:var(--dark); border:none">
+      <p style="color:var(--dark-text); font-size:14px">Catat hasil tiap langkah di Lembar Kerja Mini Project yang sudah dibagikan.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 26: REFLEKSI -->
+<section class="slide" id="refleksi" data-group="divider-miniproject">
+  <div class="wrap">
+    <p class="eyebrow">Refleksi &amp; Tindak Lanjut</p>
+    <h2 class="mid-title">Sebelum kita tutup sesi</h2>
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div class="reveal-q"><span class="num">1</span><p>Sub-CPMK mana yang akan diubah ke format ini minggu depan?</p></div>
+      <div class="reveal-q"><span class="num">2</span><p>Aktivitas mana yang ingin dicoba lebih dulu — microlearning, video, atau soal HOTS?</p></div>
+      <div class="reveal-q"><span class="num">3</span><p>Bantuan apa yang masih dibutuhkan dari tim Teknologi Pembelajaran?</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 27: CLOSING -->
+<section class="slide divider-slide" id="closing" data-group="closing" style="background:var(--dark); color:var(--bg)">
+  <div class="wrap">
+    <p style="color:var(--coral-light); font-weight:600; letter-spacing:1.5px; text-transform:uppercase; font-size:13px">Terima kasih</p>
+    <h2 style="color:#fff; font-size:clamp(30px,5vw,56px); margin-top:10px">Selamat menyusun<br>modul digital pembelajaran</h2>
+    <div class="grid" style="margin-top:32px; grid-template-columns:minmax(0,320px)">
+      <div class="foot-card">
+        <p>Fuad Dary Rosyadi</p>
+        <a href="mailto:rosyadi@its.ac.id"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 6-10 7L2 6"></path></svg> rosyadi@its.ac.id</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /deck -->
+
+<div id="controls">
+  <button class="navbtn" id="prevBtn" aria-label="Sebelumnya">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  </button>
+  <span id="slidecount">1 / 27</span>
+  <button class="navbtn" id="nextBtn" aria-label="Berikutnya">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+  </button>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+
+  var bar = document.getElementById('progressbar');
+  var countEl = document.getElementById('slidecount');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('#navlinks a'));
+
+  function groupFirstIndex(group){
+    for(var i=0;i<slides.length;i++){ if(slides[i].dataset.group === group) return i; }
+    return 0;
+  }
+
+  function show(i){
+    if(i < 0) i = 0;
+    if(i > total - 1) i = total - 1;
+    slides[current].classList.remove('active');
+    current = i;
+    slides[current].classList.add('active');
+    slides[current].scrollTop = 0;
+    countEl.textContent = (current+1) + ' / ' + total;
+    bar.style.width = ((current+1)/total*100) + '%';
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === total - 1;
+    var activeGroup = slides[current].dataset.group;
+    navLinks.forEach(function(a){ a.classList.toggle('active', a.dataset.jump === activeGroup); });
+  }
+
+  prevBtn.addEventListener('click', function(){ show(current - 1); });
+  nextBtn.addEventListener('click', function(){ show(current + 1); });
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName) || '';
+    var typing = tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable;
+    if(typing) return;
+    if(e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown'){ e.preventDefault(); show(current + 1); }
+    if(e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); show(current - 1); }
+  });
+  navLinks.forEach(function(a){
+    a.addEventListener('click', function(){ show(groupFirstIndex(a.dataset.jump)); });
+  });
+
+  // ---- copy buttons (static) ----
+  document.querySelectorAll('.copy-btn[data-copy]').forEach(function(btn){
+    btn.addEventListener('click', function(){ copyText(btn.getAttribute('data-copy'), btn); });
+  });
+
+  function copyText(text, btn){
+    var label = btn.innerHTML;
+    var done = function(){
+      btn.textContent = '✓ Tersalin';
+      btn.classList.add('copied');
+      setTimeout(function(){ btn.innerHTML = label; btn.classList.remove('copied'); }, 1600);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text, done); });
+    } else { fallbackCopy(text, done); }
+  }
+  function fallbackCopy(text, done){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  // ---- OBE interactive breakdown ----
+  document.querySelectorAll('.ob-node.locked').forEach(function(node){
+    function reveal(){
+      node.classList.remove('locked');
+      node.querySelector('.ob-placeholder').hidden = true;
+      node.querySelector('.ob-content').hidden = false;
+    }
+    node.addEventListener('click', reveal);
+    node.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); reveal(); } });
+  });
+
+  // ---- checklist (per-viewer, best-effort) ----
+  var checklist = document.getElementById('miniproject-checklist');
+  if(checklist){
+    var boxes = checklist.querySelectorAll('input[type=checkbox]');
+    try{
+      var saved = JSON.parse(localStorage.getItem('miniproject-checklist') || '{}');
+      boxes.forEach(function(b){
+        if(saved[b.dataset.step]){ b.checked = true; b.closest('.check-item').classList.add('done'); }
+      });
+    }catch(e){}
+    boxes.forEach(function(b){
+      b.addEventListener('change', function(){
+        b.closest('.check-item').classList.toggle('done', b.checked);
+        try{
+          var state = JSON.parse(localStorage.getItem('miniproject-checklist') || '{}');
+          state[b.dataset.step] = b.checked;
+          localStorage.setItem('miniproject-checklist', JSON.stringify(state));
+        }catch(e){}
+      });
+    });
+  }
+
+  // ---- Bloom verb auto-detection ----
+  var BLOOM_LEVELS = ['C1 · Mengingat','C2 · Memahami','C3 · Menerapkan','C4 · Menganalisis','C5 · Mengevaluasi','C6 · Mencipta'];
+  var BLOOM_VERBS = {
+    'C1 · Mengingat': ['menyebutkan','mendefinisikan','mengidentifikasi','menuliskan kembali','mendaftar','mengingat','menamai'],
+    'C2 · Memahami': ['menjelaskan','menguraikan','membandingkan','mengklasifikasikan','merangkum','menginterpretasi','mencontohkan'],
+    'C3 · Menerapkan': ['menerapkan','menggunakan','mengimplementasikan','mendemonstrasikan','mengoperasikan','menghitung','melaksanakan','mengonfigurasi'],
+    'C4 · Menganalisis': ['menganalisis','membedakan','mengorganisasi','memeriksa','menguji','mendiagnosis','menelaah'],
+    'C5 · Mengevaluasi': ['mengevaluasi','menilai','mengkritik','memvalidasi','merekomendasikan','membenarkan','memutuskan'],
+    'C6 · Mencipta': ['merancang','mendesain','mengonstruksi','mengembangkan','memformulasikan','menciptakan','membangun','mengorkestrasi','menyusun']
+  };
+  function detectBloom(text){
+    var t = (text || '').toLowerCase();
+    var found = null;
+    BLOOM_LEVELS.forEach(function(level){
+      BLOOM_VERBS[level].forEach(function(verb){
+        if(t.indexOf(verb) !== -1){ found = level; }
+      });
+    });
+    return found;
+  }
+
+  // ---- prompt builders ----
+  function buildPromptBuilder(container, config){
+    var left = document.createElement('div');
+    var titleL = document.createElement('h4');
+    titleL.textContent = config.title;
+    left.appendChild(titleL);
+
+    var values = {};
+    var watchers = {};
+
+    config.fields.forEach(function(f){
+      values[f.key] = f.default || '';
+      var wrap = document.createElement('div');
+      wrap.className = 'field';
+      var label = document.createElement('label');
+      label.textContent = f.label;
+      wrap.appendChild(label);
+
+      if(f.type === 'choice'){
+        var manualOverride = false;
+        var choiceWrap = document.createElement('div');
+        choiceWrap.className = 'choice-wrap';
+        var customInput = null;
+        var selected = {}; // used only when f.multi
+
+        if(f.multi){
+          function updateMultiValue(){
+            var arr = [];
+            Array.prototype.forEach.call(choiceWrap.children, function(btn){
+              if(btn.dataset.val !== '__custom__' && selected[btn.dataset.val]) arr.push(btn.dataset.val);
+            });
+            if(customInput && !customInput.hidden && customInput.value.trim()) arr.push(customInput.value.trim());
+            values[f.key] = arr.join(', ');
+            render();
+          }
+
+          f.options.forEach(function(opt){
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'choice-pill multi';
+            b.textContent = opt;
+            b.dataset.val = opt;
+            b.addEventListener('click', function(){
+              selected[opt] = !selected[opt];
+              b.classList.toggle('active', !!selected[opt]);
+              updateMultiValue();
+            });
+            choiceWrap.appendChild(b);
+          });
+
+          if(f.custom){
+            var customBtn2 = document.createElement('button');
+            customBtn2.type = 'button';
+            customBtn2.className = 'choice-pill multi';
+            customBtn2.textContent = '+ Tulis sendiri';
+            customBtn2.dataset.val = '__custom__';
+            choiceWrap.appendChild(customBtn2);
+
+            customInput = document.createElement('input');
+            customInput.type = 'text';
+            customInput.placeholder = f.customPlaceholder || 'Tulis pilihan sendiri...';
+            customInput.hidden = true;
+            customInput.style.marginTop = '8px';
+            customInput.addEventListener('input', updateMultiValue);
+
+            customBtn2.addEventListener('click', function(){
+              var showing = customInput.hidden;
+              customInput.hidden = !showing;
+              customBtn2.classList.toggle('active', showing);
+              if(showing) customInput.focus();
+              updateMultiValue();
+            });
+          }
+
+          wrap.appendChild(choiceWrap);
+          if(customInput) wrap.appendChild(customInput);
+          if(f.hint){
+            var hintM = document.createElement('p');
+            hintM.className = 'choice-hint';
+            hintM.textContent = f.hint;
+            wrap.appendChild(hintM);
+          }
+          left.appendChild(wrap);
+          return;
+        }
+
+        function setActive(val, isAuto){
+          values[f.key] = val;
+          Array.prototype.forEach.call(choiceWrap.children, function(btn){
+            btn.classList.remove('active','auto');
+            if(btn.dataset.val === val){ btn.classList.add('active'); if(isAuto) btn.classList.add('auto'); }
+          });
+          if(customInput && val !== '__custom__') customInput.hidden = true;
+          render();
+        }
+
+        f.options.forEach(function(opt){
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'choice-pill';
+          b.textContent = opt;
+          b.dataset.val = opt;
+          b.addEventListener('click', function(){ manualOverride = true; setActive(opt, false); });
+          choiceWrap.appendChild(b);
+        });
+
+        if(f.custom){
+          var customBtn = document.createElement('button');
+          customBtn.type = 'button';
+          customBtn.className = 'choice-pill';
+          customBtn.textContent = 'Lainnya (tulis sendiri)';
+          customBtn.dataset.val = '__custom__';
+          choiceWrap.appendChild(customBtn);
+
+          customInput = document.createElement('input');
+          customInput.type = 'text';
+          customInput.placeholder = f.customPlaceholder || 'Tulis pilihan sendiri...';
+          customInput.hidden = true;
+          customInput.style.marginTop = '8px';
+          customInput.addEventListener('input', function(){ values[f.key] = customInput.value; render(); });
+
+          customBtn.addEventListener('click', function(){
+            manualOverride = true;
+            Array.prototype.forEach.call(choiceWrap.children, function(btn){ btn.classList.remove('active','auto'); });
+            customBtn.classList.add('active');
+            customInput.hidden = false;
+            customInput.focus();
+            values[f.key] = customInput.value;
+            render();
+          });
+        }
+
+        wrap.appendChild(choiceWrap);
+        if(customInput) wrap.appendChild(customInput);
+        if(f.hint){
+          var hint = document.createElement('p');
+          hint.className = 'choice-hint';
+          hint.textContent = f.hint;
+          wrap.appendChild(hint);
+        }
+
+        if(f.watchField){
+          watchers[f.watchField] = watchers[f.watchField] || [];
+          watchers[f.watchField].push(function(text){
+            if(manualOverride) return;
+            var detected = f.autoDetect ? f.autoDetect(text) : null;
+            if(detected) setActive(detected, true);
+          });
+        }
+
+        left.appendChild(wrap);
+        return;
+      }
+
+      var input;
+      if(f.type === 'textarea'){ input = document.createElement('textarea'); input.rows = f.rows || 2; }
+      else { input = document.createElement('input'); input.type = 'text'; }
+      input.placeholder = f.placeholder || '';
+      input.value = f.default || '';
+      input.addEventListener('input', function(){
+        values[f.key] = input.value;
+        if(watchers[f.key]) watchers[f.key].forEach(function(cb){ cb(input.value); });
+        render();
+      });
+      wrap.appendChild(input);
+      left.appendChild(wrap);
+    });
+
+    var right = document.createElement('div');
+    var titleR = document.createElement('h4');
+    titleR.textContent = config.outputTitle || 'Prompt siap ditempel ke AI';
+    right.appendChild(titleR);
+    var output = document.createElement('div');
+    output.className = 'output-box';
+    right.appendChild(output);
+    var copyRow = document.createElement('div');
+    copyRow.className = 'copy-row';
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'btn copy-btn';
+    copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> ' + (config.copyLabel || 'Salin prompt');
+    copyRow.appendChild(copyBtn);
+    right.appendChild(copyRow);
+
+    function render(){ output.textContent = config.template(values); }
+    copyBtn.addEventListener('click', function(){ copyText(config.template(values), copyBtn); });
+
+    container.appendChild(left);
+    container.appendChild(right);
+    render();
+  }
+
+  buildPromptBuilder(document.getElementById('builder-modul'), {
+    title: 'Lengkapi elemen prompt',
+    fields: [
+      {key:'topik', label:'Topik / Sub-CPMK', default:'Nilai Bisnis Cloud Computing bagi organisasi'},
+      {key:'masalah', label:'Masalah/situasi nyata pemicu', default:'organisasi kesulitan menghitung ROI saat migrasi ke cloud'},
+      {key:'format', label:'Format keluaran', type:'choice', options:['PDF (dokumen terstruktur)','PPT (slide per slide)','HTML (interaktif)']}
+    ],
+    template: function(v){
+      var fmt = v.format || 'PDF (dokumen terstruktur)';
+      var fmtInstruksi = {
+        'PDF (dokumen terstruktur)': 'dokumen terstruktur (judul, 4 bagian sesuai struktur storytelling, tiap bagian maks 3 kalimat), siap dirapikan jadi PDF/Google Doc',
+        'PPT (slide per slide)': 'kerangka slide PowerPoint — 1 slide per bagian storytelling, tiap slide berisi judul + 2–3 bullet poin visual (bukan paragraf panjang)',
+        'HTML (interaktif)': 'satu halaman HTML interaktif — tiap bagian storytelling sebagai section yang bisa di-scroll, dengan elemen interaktif sederhana (tombol reveal jawaban, highlight istilah kunci)'
+      };
+      return 'Peran: desainer instruksional pendidikan tinggi.\n' +
+        'Topik: ' + v.topik + '.\n' +
+        'Tugas: buat modul microlearning gaya storytelling (dibaca 3–7 menit) dengan struktur Masalah–Konflik–Solusi–Refleksi, mulai dari: ' + v.masalah + '.\n' +
+        'Format keluaran: ' + (fmtInstruksi[fmt] || fmtInstruksi['PDF (dokumen terstruktur)']) + '.\n' +
+        'Wajib: sisipkan 1 pertanyaan cek pemahaman singkat (pilihan ganda/isian singkat + kunci jawaban) setiap 2 bagian materi, agar peserta tetap aktif membaca.\n' +
+        'Batasan: bahasa lugas, hindari jargon tanpa penjelasan.';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('builder-h5p'), {
+    title: 'Lengkapi elemen prompt',
+    outputTitle: 'Hasil siap ditempel ke Lumi',
+    fields: [
+      {key:'topik', label:'Topik', default:'Konfigurasi Load Balancing pada layanan cloud'},
+      {key:'tipe', label:'Tipe konten H5P (di Lumi)', type:'choice', options:['Drag and Drop','Image Hotspots','Branching Scenario','Course Presentation','Interactive Video','Question Set']}
+    ],
+    template: function(v){
+      return 'Peran: pengembang konten interaktif H5P.\n' +
+        'Topik: ' + v.topik + '.\n' +
+        'Tipe konten H5P: ' + (v.tipe || '[pilih tipe]') + '.\n' +
+        'Tugas: susun skenario/pertanyaan interaktif beserta feedback benar/salah untuk tipe tersebut.\n' +
+        'Format: daftar langkah/pertanyaan bernomor, siap ditempel ke tab Edit saat membuat konten baru di Lumi (app.lumi.education).';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('builder-proyek'), {
+    title: 'Lengkapi elemen prompt',
+    fields: [
+      {key:'topik', label:'CPMK / topik proyek', default:'Merancang arsitektur cloud untuk studi kasus organisasi nyata'},
+      {key:'teknik', label:'Teknik pembelajaran', type:'choice', options:['Problem-Based Learning','Project-Based Learning','Case-Based Learning','Team-Based Learning']}
+    ],
+    template: function(v){
+      var teknik = v.teknik || 'Problem-Based Learning';
+      var arahan = {
+        'Problem-Based Learning': 'sajikan 1 masalah nyata yang belum terstruktur (ill-structured) sebagai starting point; mahasiswa menggali sendiri konsep & solusinya secara mandiri/kelompok',
+        'Project-Based Learning': 'rancang 1 proyek nyata yang dikerjakan bertahap sepanjang beberapa minggu, menghasilkan produk/deliverable konkret di akhir',
+        'Case-Based Learning': 'sajikan 1 studi kasus otentik (kejadian nyata) untuk dianalisis & didiskusikan, termasuk keputusan yang sudah diambil dalam kasus tersebut',
+        'Team-Based Learning': 'susun 2 bagian: readiness assurance test individu singkat, lalu aktivitas penerapan konsep dalam tim saat sesi kelas'
+      };
+      return 'Peran: perancang tugas proyek pendidikan tinggi.\n' +
+        'CPMK/topik: ' + v.topik + '.\n' +
+        'Teknik pembelajaran: ' + teknik + '.\n' +
+        'Tugas: ' + (arahan[teknik] || arahan['Problem-Based Learning']) + '. Sertakan brief tugas + 3 kriteria keberhasilan utama.\n' +
+        'Format: deskripsi singkat + deliverable + kriteria bernomor.';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('builder-kuis'), {
+    title: 'Lengkapi elemen prompt',
+    outputTitle: 'Prompt/teks siap ditempel ke Wayground AI',
+    fields: [
+      {key:'topik', label:'Topik / mapel & jenjang', default:'Konsep dasar Docker & Kubernetes — mahasiswa S1 TI semester 4'},
+      {key:'jumlah', label:'Jumlah soal', default:'5'},
+      {key:'bloom', label:'Level Bloom', type:'choice', options:['C1–C2 (ingat/paham)','C3 (aplikasi)','C4–C5 (analisis/evaluasi)']}
+    ],
+    template: function(v){
+      var bloom = v.bloom || 'C1–C2 (ingat/paham)';
+      return 'Peran: pembuat soal evaluasi.\n' +
+        'Topik: ' + v.topik + '.\n' +
+        'Tugas: buat ' + (v.jumlah || '5') + ' soal pilihan ganda (4 opsi) beserta kunci jawaban, level ' + bloom + '.\n' +
+        'Format: nomor, pertanyaan, opsi A–D, kunci di akhir.\n' +
+        'Catatan: jika ditempel sebagai teks sumber di Wayground AI (Create → Generate with AI → Prompt/Teks atau Dokumen), pastikan konten ini spesifik ke materi kuliah, bukan hanya topik umum.';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('builder-presentasi'), {
+    title: 'Lengkapi elemen prompt',
+    fields: [
+      {key:'topik', label:'Topik proyek/presentasi', default:'Hasil implementasi load balancing pada layanan cloud'}
+    ],
+    template: function(v){
+      return 'Peran: penguji presentasi akademik.\n' +
+        'Topik proyek: ' + v.topik + '.\n' +
+        'Tugas: buat 3 pertanyaan tanya-jawab pendalaman + 3 indikator penilaian komunikasi/penguasaan materi.\n' +
+        'Format: daftar bernomor.';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('builder-portofolio'), {
+    title: 'Lengkapi elemen prompt',
+    fields: [
+      {key:'topik', label:'Mata kuliah / daftar topik utama', default:'Teknologi Komputasi Awan — Docker, Kubernetes, Load Balancing, Keamanan Cloud'}
+    ],
+    template: function(v){
+      return 'Peran: perancang portofolio pembelajaran.\n' +
+        'Mata kuliah/topik: ' + v.topik + '.\n' +
+        'Tugas: buat struktur portofolio (kategori isi) berdasarkan Sub-CPMK utama mata kuliah ini.\n' +
+        'Format: daftar kategori bernomor + 1 kalimat penjelasan tiap kategori.';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('builder-video'), {
+    title: 'Lengkapi instruksi kustomisasi',
+    outputTitle: 'Instruksi siap ditempel di Gemini Notebook',
+    copyLabel: 'Salin instruksi',
+    fields: [
+      {key:'topik', label:'Materi/topik yang sudah diunggah', default:'Mekanisme Manajemen Cloud (materi & slide praktikum)'},
+      {key:'audiens', label:'Audiens', default:'mahasiswa S1 TI semester 4, belum familiar dengan topik ini'},
+      {key:'jenis', label:'Jenis video', type:'choice', options:['Explainer','Short','Cinematic']}
+    ],
+    template: function(v){
+      var jenis = v.jenis || 'Explainer';
+      var durasi = {'Explainer':'ringkasan terstruktur yang menghubungkan tiap konsep dalam materi','Short':'~60 detik, langsung ke poin-poin inti saja','Cinematic':'gaya naratif/sinematik untuk mengurai ide kompleks (narasi Bahasa Inggris saja, khusus akun 18+)'};
+      return 'Instruksi kustomisasi di Gemini Notebook — pilih jenis video: ' + jenis + ':\n' +
+        'Materi: ' + v.topik + '.\n' +
+        'Audiens: ' + v.audiens + '.\n' +
+        'Arahan: ' + (durasi[jenis] || durasi['Explainer']) + '. Tekankan penerapan praktis dan sertakan minimal 1 contoh nyata dari materi.\n' +
+        'Setelah selesai: tonton pratinjau di Gemini Notebook, unduh, lalu unggah ke LMS sebagai materi Segmen Aktivitas.';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('builder-hots'), {
+    title: 'Lengkapi elemen prompt',
+    fields: [
+      {key:'konteks', label:'Konteks (mata kuliah, jenjang, CPMK)', default:'mata kuliah Teknologi Komputasi Awan, mahasiswa S1 TI semester 4, CPMK: merancang mekanisme keamanan cloud untuk kasus organisasi'},
+      {key:'tugas', label:'Tugas', default:'buat 1 soal HOTS level C5 (evaluasi) beserta rubrik penilaian 4 level dengan deskriptor tiap level'},
+      {key:'format', label:'Format', default:'soal + tabel rubrik (level, deskriptor, skor)'},
+      {key:'batasan', label:'Batasan', default:'kata kerja operasional harus sesuai level C5, hindari jawaban ya/tidak'}
+    ],
+    template: function(v){
+      return 'Peran: pakar asesmen pembelajaran berbasis Taksonomi Bloom.\n' +
+        'Konteks: ' + v.konteks + '.\n' +
+        'Tugas: ' + v.tugas + '.\n' +
+        'Format: ' + v.format + '.\n' +
+        'Batasan: ' + v.batasan + '.';
+    }
+  });
+
+  buildPromptBuilder(document.getElementById('worksheet-obe'), {
+    title: 'Lengkapi lembar kerja',
+    outputTitle: 'Ringkasan pemetaan',
+    copyLabel: 'Salin ringkasan',
+    fields: [
+      {key:'subcpmk', label:'Sub-CPMK yang dipetakan', placeholder:'mis. Merancang konfigurasi keamanan jaringan cloud'},
+      {key:'bloom', label:'Level Bloom', type:'choice', options: BLOOM_LEVELS, watchField:'subcpmk', autoDetect: detectBloom,
+        hint:'Terdeteksi otomatis dari kata kerja pada Sub-CPMK di atas — klik salah satu kotak untuk mengganti manual.'},
+      {key:'aktivitas', label:'Sumber & Aktivitas dipilih (boleh lebih dari satu)', type:'choice', multi:true, custom:true,
+        options:['Modul digital (storytelling)','Video pembelajaran singkat (Gemini Notebook)','Konten interaktif H5P (Lumi)','Tugas proyek/studi kasus (PBL/PjBL/CBL/TBL)'],
+        customPlaceholder:'Tulis aktivitas lain...'},
+      {key:'evaluasi', label:'Evaluasi dipilih (boleh lebih dari satu)', type:'choice', multi:true, custom:true,
+        options:['Kuis otomatis (Wayground/Google Form)','Soal HOTS + rubrik','Presentasi/demo hasil kerja','Portofolio digital'],
+        customPlaceholder:'Tulis evaluasi lain...'}
+    ],
+    template: function(v){
+      return 'Sub-CPMK: ' + (v.subcpmk || '[belum diisi]') + '\n' +
+        'Level Bloom: ' + (v.bloom || '[belum terdeteksi/dipilih]') + '\n' +
+        'Sumber & Aktivitas: ' + (v.aktivitas || '[belum dipilih]') + '\n' +
+        'Evaluasi: ' + (v.evaluasi || '[belum dipilih]');
+    }
+  });
+
+  show(0);
+})();
+</script>
+</body>
+</html>
